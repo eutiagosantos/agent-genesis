@@ -54,10 +54,10 @@ model ProjectCampaign{
   gemini_result Json?
   status ProjectStatus @default(PENDENTE)
   created_at DateTime @default(now())
-  angulosDeVenda AnguloDeVenda[]
+  salesAngles SalesAngle[]
 }
 
-model AnguloDeVenda {
+model SalesAngle {
   id String @unique @default(uuid())
   project_id String
   project ProjectCampaign @relation(fields: [project_id], references: [id])
@@ -70,7 +70,7 @@ model AnguloDeVenda {
 model TextAsset {
   id String @unique @default(uuid())
   angle_id String
-  angle AnguloDeVenda @relation(fields: [angle_id], references: [id])
+  angle SalesAngle @relation(fields: [angle_id], references: [id])
   asset_type AssetType
   content String
   version Int @default(1)
