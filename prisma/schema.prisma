@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  PENDENTE
+  PROCESSANDO_ANALISE
+  ANALISE_CONCLUIDA
+  GERANDO_ESTRATEGIAS
+  CONCLUIDO
+}
+
+enum AssetType {
+  HEADLINE_FACEBOOK
+  ROTEIRO_REELS
+  TEXTO_GOOGLE_ADS
+  COPY_EMAIL
+  POST_INSTAGRAM
+  STORY_INSTAGRAM
+  TITULO_YOUTUBE
+  DESCRICAO_YOUTUBE
+}
+
+model User{
+  id String @unique @default(uuid())
+  email String @unique
+  name String
+  hash_password String
+  created_at DateTime @default(now())
+  credits BigInt @default(50)
+  projectCampaigns ProjectCampaign[]
+}
+
+model ProjectCampaign{
+  id String @unique @default(uuid())
+  user_id String
+  user User @relation(fields: [user_id], references: [id])
+  project_name String
+  project_type String // 'ESTRATEGIA_DO_ZERO' ou 'ANALISE_DE_CRIATIVO'
+  user_input String
+  url_video String?
+  gemini_result Json?
+  status ProjectStatus @default(PENDENTE)
+  created_at DateTime @default(now())
+  angulosDeVenda AnguloDeVenda[]
+}
+
+model AnguloDeVenda {
+  id String @unique @default(uuid())
+  project_id String
+  project ProjectCampaign @relation(fields: [project_id], references: [id])
+  title String
+  strategic_description String
+  selected_by_user Boolean @default(false)
+  textAssets TextAsset[]
+}
+
+model TextAsset {
+  id String @unique @default(uuid())
+  angle_id String
+  angle AnguloDeVenda @relation(fields: [angle_id], references: [id])
+  asset_type AssetType
+  content String
+  version Int @default(1)
+}
