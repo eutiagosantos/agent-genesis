@@ -33,6 +33,13 @@ enum AssetType {
   DESCRICAO_YOUTUBE
 }
 
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User{
   id String @unique @default(uuid())
   email String @unique
