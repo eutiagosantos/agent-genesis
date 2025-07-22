@@ -3,47 +3,86 @@ import * as fs from "fs";
 import path from "path";
 
 export async function generateAudio(prompt: string, voiceName: string) {
-    const ai = new GoogleGenAI({});
+    // Validação de entrada com logs para debug
+    console.log('generateAudio chamado com:', { prompt: !!prompt, voiceName: !!voiceName });
+    console.log('Valores recebidos:', { prompt, voiceName });
 
     if (!prompt || !voiceName) {
+        const errorMsg = `Parâmetros inválidos: prompt=${!!prompt}, voiceName=${!!voiceName}`;
+        console.error(errorMsg);
         throw new Error("Prompt e voz são obrigatórios.");
     }
 
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: prompt }] }],
-        config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName },
+    // Verificar se a API key está configurada
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("API key do Google AI não configurada");
+    }
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+        console.log('Fazendo requisição para o Gemini...');
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName },
+                    },
                 },
             },
-        },
-    });
+        });
 
-    const data = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!data) {
-        // Log para debug
-        console.error("Resposta da API Gemini:", JSON.stringify(response, null, 2));
-        throw new Error("Não foi possível gerar o áudio. Verifique se o prompt e a voz são válidos.");
+        console.log('Resposta recebida do Gemini');
+
+        // Verificar se a resposta contém dados de áudio
+        const data = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+        if (!data) {
+            console.error("Estrutura da resposta:", JSON.stringify(response, null, 2));
+            throw new Error("Não foi possível gerar o áudio. Verifique se o prompt e a voz são válidos.");
+        }
+
+        // Converter base64 para buffer
+        const audioBuffer = Buffer.from(data, 'base64');
+        console.log('Buffer de áudio criado, tamanho:', audioBuffer.length);
+
+        // Salvar arquivo
+        const fileName = `out-${Date.now()}.wav`;
+        await saveWaveFile(fileName, audioBuffer);
+
+        console.log('Arquivo salvo:', fileName);
+
+        return `/uploads/${fileName}`;
+
+    } catch (error) {
+        console.error('Erro ao gerar áudio:', error);
+
+        if (error instanceof Error) {
+            throw new Error(`Erro na geração de áudio: ${error.message}`);
+        } else {
+            throw new Error('Erro desconhecido na geração de áudio');
+        }
     }
-    const audioBuffer = Buffer.from(data, 'base64');
-
-    const fileName = `out-${Date.now()}.wav`;
-    await saveWaveFile(fileName, audioBuffer);
-
-    // Supondo que uploads/ está exposta em /uploads
-    return `/uploads/${fileName}`;
 }
 
-async function saveWaveFile(fileName: string, audioBuffer: Buffer) {
-    const uploadPath = path.join(__dirname, 'uploads/');
-    fs.mkdirSync(uploadPath, { recursive: true });
-    const filePath = path.join(uploadPath, fileName);
-    await fs.promises.writeFile(filePath, audioBuffer);
-    return filePath;
+// Função auxiliar para salvar o arquivo (você precisa implementar esta função)
+async function saveWaveFile(fileName: string, audioBuffer: Buffer): Promise<void> {
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    // Criar diretório uploads se não existir
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    // Salvar arquivo
+    const filePath = path.join(uploadsDir, fileName);
+    await fs.writeFile(filePath, audioBuffer);
 }
+
 
 export function getGoogleVoices() {
     return [

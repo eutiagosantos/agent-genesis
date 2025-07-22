@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Readable } from "stream";
 import { createWriteStream } from "fs";
 import path from "path";
@@ -52,4 +53,23 @@ export async function generateVideo(prompt: string) {
     }
     // Retorna o(s) caminho(s) do(s) vídeo(s) salvo(s)
     return savedFiles;
+}
+
+export async function resumeYoutubeVideo(videoUrl: string) {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+    const videoPart = {
+        fileData: {
+            mimeType: "video/mp4",
+            fileUri: videoUrl
+        },
+    };
+
+    const result = await model.generateContent([
+        "Por favor, resuma o vídeo a seguir com riqueza de detalhes para um empreendedor iniciante aprender com esse vídeo.",
+        videoPart 
+    ]);
+
+    return result;
 }

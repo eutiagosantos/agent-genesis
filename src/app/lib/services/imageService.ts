@@ -1,42 +1,26 @@
-import { GoogleGenAI, Modality } from "@google/genai";
-import fs from "fs";
-import path from "path";
+import { DallEAPIWrapper } from "@langchain/openai";
 
-export async function generateImage(prompt: string){
-    const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_API_KEY});
-    
-    const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-preview-image-generation",
-        contents: prompt,
-        config: {
-            responseModalities: [Modality.TEXT, Modality.IMAGE],
-        }
+export async function generateImage(prompt: string): Promise<string> {
+    try {
+    const tool = new DallEAPIWrapper({
+        n: 1,
+        model: "dall-e-3",
+            apiKey: process.env.OPENAI_API_KEY
     });
-    if (response && response.candidates && response.candidates[0]?.content?.parts) {
-        // Garante que a pasta existe
-        const imagesDir = path.resolve(process.cwd(), "images-gemini");
-        if (!fs.existsSync(imagesDir)) {
-            fs.mkdirSync(imagesDir);
+
+    const imageURL = await tool.invoke(prompt);
+
+        if (typeof imageURL === "string" && imageURL.startsWith("http")) {
+            return imageURL;
         }
-        let imageCount = 1;
-        for (const part of response.candidates[0].content.parts) {
-            // Based on the part type, either show the text or save the image
-            if (part.text) {
-                console.log(part.text);
-            } else if (part.inlineData && part.inlineData.data) {
-                const imageData = part.inlineData.data;
-                if (typeof imageData === "string") {
-                    const buffer = Buffer.from(imageData, "base64");
-                    const imagePath = path.join(imagesDir, `gemini-native-image-${imageCount}.png`);
-                    fs.writeFileSync(imagePath, buffer);
-                    console.log(`Image saved as ${imagePath}`);
-                    imageCount++;
-                } else {
-                    console.error("Dados da imagem não são uma string base64 válida.");
-                }
-            }
+
+        if (Array.isArray(imageURL) && imageURL.length > 0 && typeof imageURL[0] === "string") {
+            return imageURL[0];
         }
-    } else {
-        console.error("Resposta inesperada da API ou sem candidatos.");
+
+        throw new Error("Não foi possível gerar a imagem ou URL inválida.");
+    } catch (error) {
+        console.error("Erro ao gerar imagem:", error);
+        throw new Error("Erro ao gerar imagem: " + (error instanceof Error ? error.message : String(error)));
     }
 }
